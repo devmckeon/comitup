@@ -9,35 +9,62 @@
 
 import dbus
 import sys
+from functools import wraps
 
-bus = dbus.SystemBus()
 
-try:
-    ciu_service = bus.get_object(
-                   'com.github.davesteele.comitup',
-                   '/com/github/davesteele/comitup'
-                  )
-except dbus.exceptions.DBusException:
-    print("Error connecting to the comitup D-Bus service")
-    sys.exit(1)
+ciu_service = None
+ciu_fns = {}
 
-ciu_state = ciu_service.get_dbus_method(
-                'state',
-                'com.github.davesteele.comitup'
+
+def ciu_decorator(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        global ciu_service
+        global ciu_fns
+
+        if ciu_service is None:
+            try:
+                bus = dbus.SystemBus()
+                ciu_service = bus.get_object(
+                               'com.github.davesteele.comitup',
+                               '/com/github/davesteele/comitup'
+                              )
+            except dbus.exceptions.DBusException:
+                print("Error connecting to the comitup D-Bus service")
+                sys.exit(1)
+
+        fn_name = fn.__name__[4:]
+        if fn_name not in ciu_fns:
+            ciu_fns[fn_name] = ciu_service.get_dbus_method(
+                fn_name,
+                'com.github.davesteele.comitup',
             )
-ciu_points = ciu_service.get_dbus_method(
-                'access_points',
-                'com.github.davesteele.comitup'
-             )
-ciu_delete = ciu_service.get_dbus_method(
-                'delete_connection',
-                'com.github.davesteele.comitup'
-             )
-ciu_connect = ciu_service.get_dbus_method(
-                'connect',
-                'com.github.davesteele.comitup'
-             )
-ciu_info = ciu_service.get_dbus_method(
-                'get_info',
-                'com.github.davesteele.comitup'
-             )
+
+        return ciu_fns[fn_name](*args, **kwargs)
+
+    return wrapper
+
+
+@ciu_decorator
+def ciu_state(*args, **kwargs):
+    pass
+
+
+@ciu_decorator
+def ciu_points(*args, **kwargs):
+    pass
+
+
+@ciu_decorator
+def ciu_delete(*args, **kwargs):
+    pass
+
+
+@ciu_decorator
+def ciu_connect(*args, **kwargs):
+    pass
+
+
+@ciu_decorator
+def ciu_info(*args, **kwargs):
+    pass
